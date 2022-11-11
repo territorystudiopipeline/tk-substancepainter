@@ -18,6 +18,7 @@ import time
 import inspect
 import logging
 import traceback
+from tank_vendor import six
 from functools import wraps
 from distutils.version import LooseVersion
 
@@ -139,7 +140,7 @@ def refresh_engine(scene_name, prev_context):
         # and construct the new context for this path:
         tk = tank.tank_from_path(new_path)
         ctx = tk.context_from_path(new_path, prev_context)
-    except tank.TankError, e:
+    except tank.TankError as e:
         try:
             # could not detect context from path, will use the project context
             # for menus if it exists
@@ -154,7 +155,7 @@ def refresh_engine(scene_name, prev_context):
             )
             engine.show_warning(message)
 
-        except tank.TankError, e:
+        except tank.TankError as e:
             (exc_type, exc_value, exc_traceback) = sys.exc_info()
             message = ""
             message += "Shotgun Substance Painter Engine cannot be started:.\n"
@@ -612,7 +613,12 @@ class SubstancePainterEngine(Engine):
         # Build a dictionary mapping app instance names to dictionaries of
         # commands they registered with the engine.
         app_instance_commands = {}
-        for (cmd_name, value) in self.commands.iteritems():
+        if six.PY2:
+            command_iter = self.commands.iteritems()
+        else:
+            command_iter = self.commands.items()
+
+        for (cmd_name, value) in command_iter:
             app_instance = value["properties"].get("app")
             if app_instance:
                 # Add entry 'command name: command function' to the command
@@ -644,7 +650,12 @@ class SubstancePainterEngine(Engine):
             else:
                 if not setting_cmd_name:
                     # Run all commands of the given app instance.
-                    for (cmd_name, command_function) in cmd_dict.iteritems():
+                    if six.PY2:
+                        command_iter = cmd_dict.iteritems()
+                    else:
+                        command_iter = cmd_dict.items()
+
+                    for (cmd_name, command_function) in command_iter:
                         msg = (
                             "%s startup running app '%s' command '%s'.",
                             self.name,
@@ -756,7 +767,7 @@ class SubstancePainterEngine(Engine):
                 # the original dialog list.
                 self.logger.debug("Closing dialog %s.", dialog_window_title)
                 dialog.close()
-            except Exception, exception:
+            except Exception as exception:
                 traceback.print_exc()
                 self.logger.error(
                     "Cannot close dialog %s: %s", dialog_window_title, exception
